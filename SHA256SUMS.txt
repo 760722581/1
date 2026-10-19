@@ -1,1 +1,1 @@
-f6b00503347ddd7fe45ef6ea853f20343a40a491cf91cb0c01578f61a3da5331  InterviewAssistant-Windows-x64-v0.2.0.exe
+385f8d604d42e5f9890f890524a9775e1d17a5e8efcbab0483c58af9c2fcfed3  InterviewAssistant-Windows-x64-v0.3.0.exe
