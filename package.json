@@ -1,0 +1,34 @@
+{
+  "name": "interview-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "test": "node --test",
+    "desktop": "electron .",
+    "dist:win": "electron-builder --win portable"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "desktop.cjs",
+  "devDependencies": {
+    "electron": "^39.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "cn.tingti.interview",
+    "productName": "听题",
+    "files": [
+      "desktop.cjs",
+      "server.js",
+      "logic.js",
+      "public/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable"
+    }
+  }
+}

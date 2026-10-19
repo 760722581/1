@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>听题 · 面试辅助</title><link rel="stylesheet" href="/style.css"></head>
+<body><main>
+<header><a class="brand" href="/">听题<span>面试辅助</span></a><span class="badge">练习 · 整理 · 从容表达</span></header>
+<section class="intro"><div class="eyebrow">INTERVIEW COMPANION</div><h1>听清问题，<br>找到回答的思路。</h1><p>只采集会议声音，提炼面试官的问题。结合你的真实经历，生成简短、可口述的回答建议。</p></section>
+<div class="grid"><aside class="panel"><h2>你的面试</h2><label for="role">目标岗位</label><input id="role" placeholder="例如：半导体工艺 / 材料研发 / 化工工程师"><label for="background">真实经历与技能</label><textarea id="background" rows="6" placeholder="填写材料体系、工艺、表征方法、项目职责与技能。越具体，建议越贴合；不会自动编造经历。"></textarea><p class="hint">资料仅在本次页面会话中保留。问题与背景会发送到你配置的模型服务。</p><hr><h2>音频来源</h2><p class="hint">推荐桌面 Chrome / Edge。选择会议所在的浏览器标签页，并勾选「分享标签页音频」。不会请求麦克风权限。</p><button id="capture">选择会议音频</button><button id="stop" class="secondary" disabled>停止并处理最后一段</button><p class="hint">一次采集最多 60 秒；点击「停止」立即开始识别。分段提问可减少等待，当前版本不是实时流式识别。</p><p class="notice">仅在获得参与者同意、且面试规则允许时使用。共享时浏览器也会要求选择画面；本工具只处理音频。</p></aside>
+<section class="panel workspace"><div class="section-title"><h2>问题与回答</h2><span id="status" role="status" aria-live="polite">检查服务中</span></div><label for="question">手动输入或修正转写</label><textarea id="question" rows="4" placeholder="例如：请介绍一个你解决过的技术难题。"></textarea><div class="actions"><button id="answer">生成回答建议</button><button id="example" class="secondary">填入示例问题</button></div><div id="error" role="alert"></div><div id="results" aria-live="polite"><div class="empty"><span>✦</span><h3>下一个问题，准备好了</h3><p>采集一段会议音频，或直接输入问题开始。</p></div></div><p class="hint">AI 可能误判提问或给出错误建议，请核实后用自己的话表达。多人混合音轨无法可靠区分面试官。</p></section></div>
+<footer>听题 · 让准备变成清晰的表达 <button id="clear" class="text-button">清空本次内容</button></footer>
+</main><script type="module" src="/app.js"></script></body></html>
