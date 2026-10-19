@@ -58,4 +58,35 @@ $('answer').onclick = () => { const text = $('question').value.trim(); if (!text
 $('example').onclick = () => { $('question').value = '在半导体薄膜沉积工艺中，如果晶圆内膜厚均匀性变差，你会如何定位原因？'; };
 $('clear').onclick = () => { generation++; stop(); ['question', 'role', 'background'].forEach(id => $(id).value = ''); $('results').replaceChildren(); $('error').textContent = ''; status('本次内容已清空'); };
 window.addEventListener('beforeunload', () => { generation++; cleanup(); });
-try { const data = await (await fetch('/api/status')).json(); status(data.configured ? '服务已连接 · 等待提问' : '待配置模型密钥'); } catch { status('服务连接失败'); }
+function fillSettings(data) {
+  $('base-url').value = data.baseURL;
+  $('model-id').value = data.model;
+  $('api-style').value = data.style;
+  $('provider').value = data.baseURL.includes('volces.com') ? 'doubao' : data.baseURL === 'https://api.openai.com/v1' ? 'openai' : 'custom';
+  $('api-key').value = '';
+  $('api-key').placeholder = data.configured ? '已保存；留空保留现有密钥' : '粘贴密钥，不要发给他人';
+  status(data.configured ? '密钥已配置 · 可测试连接' : '请先填写左侧模型设置');
+}
+$('provider').onchange = () => {
+  if ($('provider').value === 'doubao') { $('base-url').value = 'https://ark.cn-beijing.volces.com/api/v3'; $('model-id').value = 'doubao-seed-2-0-lite-260428'; $('api-style').value = 'responses'; }
+  if ($('provider').value === 'openai') { $('base-url').value = 'https://api.openai.com/v1'; $('model-id').value = 'gpt-4o-mini'; $('api-style').value = 'chat'; }
+  $('settings-status').textContent = '请填写该服务的密钥后保存，再测试连接。';
+};
+$('save-settings').onclick = async () => {
+  $('save-settings').disabled = true;
+  try {
+    const data = await post('/api/settings', JSON.stringify({apiKey: $('api-key').value, baseURL: $('base-url').value.trim(), model: $('model-id').value.trim(), style: $('api-style').value}));
+    fillSettings(data); $('settings-status').textContent = '已保存到本机并立即生效。下一步点击「测试连接」。';
+  } catch (e) { $('settings-status').textContent = e.message; }
+  finally { $('save-settings').disabled = false; }
+};
+$('test-settings').onclick = async () => {
+  $('test-settings').disabled = true; $('settings-status').textContent = '正在测试已保存的配置…';
+  try {
+    const data = await post('/api/answer', JSON.stringify({text: '请用一句话解释什么是半导体？', role: '半导体工艺工程师'}));
+    if (!data.question || !data.answer) throw new Error('服务已响应，但未生成预期的测试回答。');
+    $('settings-status').textContent = '连接成功：' + data.answer;
+  } catch (e) { $('settings-status').textContent = e.message; }
+  finally { $('test-settings').disabled = false; }
+};
+try { fillSettings(await (await fetch('/api/status')).json()); } catch { status('服务连接失败'); }

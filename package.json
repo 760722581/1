@@ -1,6 +1,6 @@
 {
   "name": "interview-assistant",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -25,10 +25,12 @@
       "server.js",
       "logic.js",
       "public/**/*",
-      "package.json"
+      "package.json",
+      "settings.js"
     ],
     "win": {
       "target": "portable"
-    }
+    },
+    "compression": "normal"
   }
 }

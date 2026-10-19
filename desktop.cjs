@@ -1,14 +1,11 @@
 const {app, BrowserWindow, session, desktopCapturer, dialog} = require('electron');
-const {readFileSync} = require('node:fs');
 const {join} = require('node:path');
-const {parseEnv} = require('node:util');
 let server;
 app.setName('听题');
 app.whenReady().then(async () => {
-  // User secrets stay outside the packaged application and are never injected into the renderer.
-  const config = app.isPackaged ? join(app.getPath('userData'), '.env') : join(__dirname, '.env');
-  try { const values = parseEnv(readFileSync(config, 'utf8')); for (const [k, v] of Object.entries(values)) if (process.env[k] === undefined) process.env[k] = v; }
-  catch (e) { if (e.code !== 'ENOENT') throw e; }
+  const folder = app.isPackaged ? app.getPath('userData') : __dirname;
+  process.env.MODEL_ENV_FILE = join(folder, '.env');
+  process.env.MODEL_SETTINGS_FILE = join(folder, 'model-settings.json');
   process.env.PORT = '0';
   ({server} = await import('./server.js'));
   const origin = `http://127.0.0.1:${server.address().port}`;
