@@ -1,9 +1,10 @@
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {answerMessages, validateInput} from './logic.js';
-import {getSettings, publicSettings, saveSettings} from './settings.js';
+import {getSettings, publicSettings, saveSettings, saveSpeechSettings} from './settings.js';
+import {transcribeVolc} from './speech.js';
 const port = Number(process.env.PORT || 3000);
-const files = {'/': ['index.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8']};
+const files = {'/': ['index.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/audio.js': ['audio.js', 'text/javascript; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8']};
 async function body(req, max) {
   const chunks = []; let size = 0;
   for await (const chunk of req) { size += chunk.length; if (size > max) { const e = new Error('请求过大。'); e.status = 413; throw e; } chunks.push(chunk); }
@@ -24,14 +25,14 @@ export const server = http.createServer(async (req, res) => {
     const localHosts = [`127.0.0.1:${server.address().port}`, `localhost:${server.address().port}`];
     if (!localHosts.includes(req.headers.host)) return json(res, 403, {error: '仅允许本机访问。'});
     if (req.method === 'GET' && req.url === '/api/status') return json(res, 200, publicSettings());
-    if (req.method === 'POST' && req.url === '/api/settings') {
+    if (req.method === 'POST' && ['/api/settings', '/api/speech-settings'].includes(req.url)) {
       if (req.headers.origin !== `http://${req.headers.host}` || !req.headers['content-type']?.startsWith('application/json')) return json(res, 403, {error: '请从听题窗口保存设置。'});
-      try { const saved = await saveSettings(JSON.parse((await body(req, 12000)).toString())); return json(res, 200, saved); }
+      try { const saved = await (req.url === '/api/settings' ? saveSettings : saveSpeechSettings)(JSON.parse((await body(req, 20000)).toString())); return json(res, 200, saved); }
       catch (e) { return json(res, e.status || 400, {error: e.code ? '本机配置保存失败，请检查文件夹写入权限。' : e.message}); }
     }
     if (req.method === 'POST' && ['/api/answer', '/api/transcribe'].includes(req.url)) {
       const config = getSettings();
-      if (!config.apiKey) return json(res, 503, {error: '尚未配置模型服务。请打开左侧「模型设置」，填写 API 密钥并保存，无需重启。'});
+      if (req.url === '/api/answer' && !config.apiKey) return json(res, 503, {error: '尚未配置模型服务。请打开左侧「模型设置」，填写 API 密钥并保存，无需重启。'});
       // Only same-origin browser requests may invoke the paid API.
       if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}` && req.headers.origin !== `https://${req.headers.host}`) return json(res, 403, {error: '不允许跨站调用。'});
       if (req.url === '/api/answer') {
@@ -52,11 +53,17 @@ export const server = http.createServer(async (req, res) => {
         if (!(answer.question === null || typeof answer.question === 'string') || !(answer.answer === null || typeof answer.answer === 'string')) throw new Error('模型返回格式不正确，请重试。');
         return json(res, 200, answer);
       }
-      if (new URL(config.baseURL).hostname.endsWith('volces.com')) return json(res, 422, {error: '豆包文字回答已接入；当前录音转写尚未适配火山语音服务，请先手动输入问题。'});
-      const audio = await body(req, 12 * 1024 * 1024);
+      const audio = await body(req, 2 * 1024 * 1024);
       if (!audio.length) return json(res, 400, {error: '未收到音频。'});
+      if (config.speech.provider === 'volcengine') {
+        if (!(config.speech.authMode === 'apiKey' ? config.speech.apiKey : config.speech.appId && config.speech.accessToken)) return json(res, 503, {error: '请先在左侧「语音识别设置」填写语音服务专用凭证并保存。方舟文字密钥不能代替语音凭证。'});
+        if (req.headers['content-type']?.split(';')[0] !== 'audio/wav') return json(res, 415, {error: '火山语音录音需要 WAV 格式，请更新软件后重新采集。'});
+        return json(res, 200, await transcribeVolc(audio, config.speech));
+      }
+      if (!config.apiKey) return json(res, 503, {error: '请先保存 OpenAI 模型服务密钥。'});
+      if (new URL(config.baseURL).hostname.endsWith('volces.com')) return json(res, 400, {error: '方舟文字地址不支持 Whisper 转写，请在语音识别设置选择火山语音服务。'});
       const type = req.headers['content-type']?.split(';')[0];
-      const extension = {'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'mp4'}[type];
+      const extension = {'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'mp4', 'audio/wav': 'wav'}[type];
       if (!extension) return json(res, 415, {error: '不支持的音频格式。'});
       const form = new FormData(); form.append('file', new Blob([audio], {type}), `audio.${extension}`); form.append('model', process.env.TRANSCRIPTION_MODEL || 'whisper-1'); form.append('language', 'zh');
       const result = await api('audio/transcriptions', {method: 'POST', body: form}, config);
@@ -66,7 +73,7 @@ export const server = http.createServer(async (req, res) => {
       const [file, type] = files[req.url]; res.writeHead(200, {'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'}); return res.end(await readFile(new URL(`public/${file}`, import.meta.url)));
     }
     json(res, 404, {error: '页面不存在。'});
-  } catch (e) { json(res, 502, {error: e.name === 'TimeoutError' ? '模型服务超时，请重试。' : e.message}); }
+  } catch (e) { json(res, 502, {error: e.name === 'TimeoutError' ? '服务响应超时，请重试或缩短录音。' : e.message}); }
 });
 await new Promise(resolve => server.listen(port, '127.0.0.1', resolve));
 console.log(`Interview assistant listening on port ${server.address().port}`);
